@@ -64,7 +64,7 @@ public class JsonTest {
 		long da=System.currentTimeMillis();
 		PropertyConfigurator.configure("F:\\work\\WorkSpace_Eclipse\\WorkSpace_Eclipse\\MassPick\\WebContent\\WEB-INF\\log4j.properties");    
 		//导入文件地址
-		File file=new File("G:\\Data\\十二月\\中国裁判文书网最新文书（每日下载）\\JSON\\JSON-zgcpwsw20151207-20151213");
+		File file=new File("G:\\Data\\十二月\\中国裁判文书网最新文书（每日下载）\\JSON\\JSON-zgcpwsw20151214-20151217\\zgcpwsw2015-12-17.json");
 		Bucket bucket = null;
 		bucket = connectionBucket(bucket);
 		try {
@@ -158,12 +158,12 @@ public class JsonTest {
             }
             list = removeDuplicate(list); //去除本次集合中重复数据
             sum=list.size();
-//            	boolean result=createJsonPostgreSQL(list,bucket);
-//            	REPEATSUM+=list.size();
-//            	if(!result){			
-//            		logger.error("读取"+name+"<<"+file.getName()+">>文件时发生JSON异常!");
-//            	}
-//            	if(result){
+            	boolean result=createJsonPostgreSQL(list,bucket);
+            	REPEATSUM+=list.size();
+            	if(!result){			
+            		logger.error("读取"+name+"<<"+file.getName()+">>文件时发生JSON异常!");
+            	}
+            	if(result){
             		boolean result2=jdbcCreateJSONPostgresql(list);
             		REPEATSUM+=list.size();
             		if(!result2){
@@ -172,7 +172,7 @@ public class JsonTest {
             			INPUTSUM+=list.size();
             			SUM++;
             		}
-//            	}
+            	}
             	temp = null;
             	list = null;
             	list = new ArrayList<ArchivesVO>();
@@ -297,7 +297,7 @@ public class JsonTest {
 			}
 			rset =stmt.executeQuery();
 			Map<String,String> map=JsongetMap(rset);
-			stmt2=conn.prepareStatement("INSERT INTO  extract_url_t_copy3(URL_ID,URL,URL_TEXT,URL_STATE,CREATE_DATE,LAST_MODIFY_DATE) values(?,?,?,?,?,?)");
+			stmt2=conn.prepareStatement("INSERT INTO  extract_url_t_005(URL_ID,URL,URL_TEXT,URL_STATE,CREATE_DATE,LAST_MODIFY_DATE) values(?,?,?,?,?,?)");
 			String urlvalue=null;
 			
 			try {
@@ -343,7 +343,7 @@ public class JsonTest {
 	 * @return
 	 */
 	private static String JsonSql(int count){
-		StringBuffer sb=new StringBuffer("SELECT URL_ID FROM extract_url_t_copy3 WHERE URL_ID IN (");
+		StringBuffer sb=new StringBuffer("SELECT URL_ID FROM extract_url_t_005 WHERE URL_ID IN (");
 		int index=0;		
 		for(index=0;index<count;index++){
 			if(index==0){				
@@ -464,6 +464,6 @@ public class JsonTest {
 	 */
 	 public static Bucket connectionCouchBaseLocal(){
 			//连接指定的桶		
-			return cluster2.openBucket("court",1,TimeUnit.MINUTES);	
+			return cluster2.openBucket("zwh_court",1,TimeUnit.MINUTES);	
 		}
 }

@@ -93,7 +93,7 @@ public class ExtractionHtml {
 //		filepor = null;
 		PropertyConfigurator.configure("F:\\work\\WorkSpace_Eclipse\\WorkSpace_Eclipse\\MassPick\\WebContent\\WEB-INF\\log4j.properties");
 		long da = System.currentTimeMillis();
-		File file = new File("G:\\Data\\十二月\\HTML\\zgcpwsw-20151127\\zgcpwsw20151127(天津、西藏、新疆、新疆建设兵团、浙江)");
+		File file = new File("G:\\Data\\十二月\\中国裁判文书网最新文书（每日下载）\\HTML\\HTML-zgcpwsw20151214-20151217");
 		//查PG省市县/区
 		Bucket bucket = null;
 		bucket = connectionBucket(bucket);
@@ -1150,6 +1150,6 @@ public class ExtractionHtml {
 	    
 	    public static Bucket connectionCouchBaseLocal(){
 			//连接指定的桶		
-			return cluster2.openBucket("court",1,TimeUnit.MINUTES);	
+			return cluster2.openBucket("zwh_court",1,TimeUnit.MINUTES);	
 		}
 }

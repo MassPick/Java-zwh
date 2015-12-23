@@ -17,6 +17,11 @@ import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.client.java.document.json.JsonObject;
 
+/**
+ * 遍历couchbase中所有案号为空的数据
+ * @author Administrator
+ *
+ */
 public class caseNumIsNull {
 	private static Logger logger = LogManager.getLogger(caseNumIsNull.class
 			.getName());

@@ -31,13 +31,12 @@ import cn.com.szgao.util.CommonConstant;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-
-
-
+/**
+ * 裁判文书excel写入postgreSql和couchbase库
+ * @author Administrator
+ *
+ */
 public class Test {
-	/**
-	 * 写日志
-	 */
 	private static Logger logger = LogManager.getLogger(Test.class.getName());
 	static ApplicationContext application=new ClassPathXmlApplicationContext("classpath:\\cn\\com\\szgao\\config\\applicationContext.xml");
 	static SessionFactory sessionFactory=(SessionFactory)application.getBean("sessionFactory");	
@@ -126,21 +125,21 @@ public class Test {
 			wokr =CommonConstant.getWorkbook(input);//获取对象数据
 			long count = wokr.getSheetAt(0).getLastRowNum();	//统计条数
 			List<String[]>  list=CommonConstant.listObject(wokr);//将数据放入到集合中
-		   boolean result=services.createJsonData(list);
+		   boolean result=services.createJsonData(list);//写CB
 		    REPEATSUM+=list.size();
 			if(!result){			
 				logger.error("读取"+name+"<<"+file.getName()+">>文件时发生JSON异常!");
 				ERRORSUM+=count;
 			}
-//			if(result){
-//			boolean result2=services.createPostgresql(list);
-//			if(!result2){
-//			   logger.error("读取"+name+"<<"+file.getName()+">>文件时发生SQL异常!");
-//			   ERRORSUM+=count;
-//			 }else{
-//				INPUTSUM+=list.size();
-//			 }
-//			}
+			if(result){
+			boolean result2=services.createPostgresql(list);//写PG
+			if(!result2){
+			   logger.error("读取"+name+"<<"+file.getName()+">>文件时发生SQL异常!");
+			   ERRORSUM+=count;
+			 }else{
+				INPUTSUM+=list.size();
+			 }
+			}
 			//统计数据
 			statisticalCount(file,count);
 		} catch (Exception e) {

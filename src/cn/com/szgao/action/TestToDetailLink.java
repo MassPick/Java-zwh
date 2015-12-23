@@ -13,6 +13,7 @@ import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.hibernate.SessionFactory;
+import org.jfree.util.Log;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
@@ -25,10 +26,12 @@ import cn.com.szgao.dto.ArchivesVO;
 import cn.com.szgao.dto.RecordData;
 import cn.com.szgao.util.CommonConstant;
 
+/**
+ * 根据excel文件补充couchbase库detailLink字段
+ * @author Administrator
+ *
+ */
 public class TestToDetailLink {
-	/**
-	 * 写日志
-	 */
 	private static Logger logger = LogManager.getLogger(Test.class.getName());
 	static ApplicationContext application=new ClassPathXmlApplicationContext("classpath:\\cn\\com\\szgao\\config\\applicationContext.xml");
 	static SessionFactory sessionFactory=(SessionFactory)application.getBean("sessionFactory");	
@@ -37,7 +40,7 @@ public class TestToDetailLink {
 	static long INPUTSUM=0;
 	static long REPEATSUM=0;
 	/**
-	 * 裁判文书
+	 * 裁判文书 通过源数据补充detailLink为空
 	 * 数据写库PostgreSql和couchbase
 	 * JSON导入extracl_url_t表和court桶
 	 * @param args
@@ -45,15 +48,16 @@ public class TestToDetailLink {
 	 */
 	public static void main(String[] args) throws Exception {	
 		//清空不用的文件或日志
-//		File filepor=new File("E:\\Company_File\\log4j-0925\\Java1\\batchImport.log");   
-//		 if(filepor.exists()){
-//		 filepor.delete();
-//		 }
-//			filepor=null;
+		File filepor=new File("E:\\Company_File\\log4j-1113\\Java1\\batchImport.log");   
+		 if(filepor.exists()){
+		 filepor.delete();
+		 }
+			filepor=null;
 		 PropertyConfigurator.configure("F:\\work\\WorkSpace_Eclipse\\WorkSpace_Eclipse\\MassPick\\WebContent\\WEB-INF\\log4j.properties"); 
 		 long da = System.currentTimeMillis();
 		File file=new File("F:\\DataSheet\\excel");
-		Bucket bucket = CommonConstant.connectionCouchBase();
+		Bucket bucket = null;
+		bucket = connectionBucket(bucket);
 		try {
 			show(file,bucket);	
 		} catch (Exception e) {
@@ -65,6 +69,26 @@ public class TestToDetailLink {
 		logger.info("所有文件总耗时"+(((System.currentTimeMillis()-da)/1000)/60)+"分钟");
 		record();
 	}
+	//连接CB,无限循环，知道连接成功为止
+		private static Bucket connectionBucket(Bucket bucket){
+			try {
+				bucket = CommonConstant.connectionCouchBase();//连接服务器CB
+//				bucket = CommonConstant.connectionCouchBaseLocal();//连接本地CB
+			} catch (Exception e) {
+				while(true){	
+					try{
+						bucket = CommonConstant.connectionCouchBase();
+						break;
+					}
+					catch(Exception ee){
+						Log.error(ee);
+					}
+				}
+			}
+			
+			return bucket;
+		}
+	
 	/**
 	 * 递归遍历文件
 	 * @param file
@@ -209,7 +233,6 @@ public class TestToDetailLink {
 				logger.info("匹配不到UUID:" + urlId);
 				continue;
 			}
-//			logger.info(urlId);
 			archs = new ArchivesVO();
 			json = gson.fromJson(obj2.toString(),
 					com.google.gson.JsonObject.class);
@@ -271,18 +294,7 @@ public class TestToDetailLink {
 			String jsonss = gson.toJson(archs);
 			doc = JsonDocument.create(urlId,
 					JsonObject.fromJson(jsonss));
-//			logger.info(doc);
 			bucket.upsert(doc);
-/*//				//标题，URL+，分类，字号，法院名+，发布日期+，省，市，区，采集时间			
-				obj = JsonObject.empty().put("title",list.get(i)[0]).put("detailLink",list.get(i)[1])
-						.put("catalog",list.get(i)[2]).put("caseNum",list.get(i)[3]).put("courtName", list.get(i)[4])
-						.put("publishDate", list.get(i)[5]).put("province", list.get(i)[6]).put("city",list.get(i)[7])
-						.put("area",list.get(i)[8]).put("collectDate",list.get(i)[9]);
-				
-				doc = JsonDocument.create(urlId, obj); //创建JSON文档	
-				
-				bucket.upsert(doc);	//插入JSON文档到库 
-*/				
 		}
 		} catch (Exception e) {
 			return false;
@@ -293,7 +305,6 @@ public class TestToDetailLink {
 			archs = null;
 			json = null;
 			gson = null;
-//			bucket.close();
 		}
 		return true;
 	}

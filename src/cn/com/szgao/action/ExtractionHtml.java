@@ -8,31 +8,34 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
-import org.hibernate.SessionFactory;
+import org.jfree.util.Log;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.support.ClassPathXmlApplicationContext;
 
-import cn.com.szgao.dao.impl.CollectionDataDao;
 import cn.com.szgao.dto.ArchivesVO;
-import cn.com.szgao.service.impl.CollectDataService;
 import cn.com.szgao.util.CommonConstant;
-
 import com.couchbase.client.java.Bucket;
+import com.couchbase.client.java.Cluster;
+import com.couchbase.client.java.CouchbaseCluster;
 import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.client.java.document.json.JsonObject;
 import com.google.gson.Gson;
 
+/**
+ * 抓取HTML写入couchbase库
+ * @author Administrator
+ *
+ */
 public class ExtractionHtml {
+	private static Cluster cluster2 = CouchbaseCluster.create("192.168.1.13");
 	public static String[] DATESTATUS = { "提交时间", "提交日期", "发布时间", "发布日期","关注时间",
-		"编辑时间", "编辑日期", "发表时间", "录入时间", "更新时间","作者点击","点击时间", "【关闭窗口】","大中小","大小","字体", "点击率", "浏览",
+		"编辑时间", "编辑日期", "发表时间", "录入时间", "更新时间","作者点击","点击时间", "【关闭窗口】","大中小","大小","年月日编辑","字体", "点击率", "浏览",
 		"点击数", "∣法律社区","发表于", "阅读", "点击", "日期", "作者", "时间", "今天是" };
 	public static String[] DEFENDANT = { "被上诉人", "被执行人", "被申诉人", "被申请人",
 			"被申请执行人", "原审被告人", "原审原告", "罪犯", "被告", "赔偿义务机关", "一审被告", "二审被上诉人"};
@@ -48,63 +51,85 @@ public class ExtractionHtml {
 			"四被上诉人委托代理人", "两上诉人的委托代理人", "移送执行机构", "诉讼代理人", "法定代表人", "申请复议人",
 			"被上诉人", "被申诉人", "被执行人", "反诉被告", "反诉原告", "原审被告", "原审原告", "执行人",
 			"负责人", "上诉人", "起诉人", "申诉人", "被告人", "原告人", "被告", "原告", "罪犯", "第三人" };
-	public static String[] THEVERDICT = { "裁定如下", "决定如下", "判决如下", "协议如下","处理意见如下",
-			"调解协议", "如下协议", "决定" };
+	public static String[] THEVERDICT = { "裁定如下", "决定如下", "判决如下", "协议如下","处理意见如下","调解协议", "如下协议", "决定" };
 	public static String[] CAUSE = { "驳回申诉通知", "赔偿决定书","提起公诉","提出公诉","提起上诉","提出上诉","提起诉讼","提出诉讼","提起行政诉讼","提出行政诉讼","争议一案", "纠纷一案", "通告一案",
 		"违法一案", "执行一案", "赔偿一案", "劫罪一案", "确认一案", "涉嫌",  "危险驾驶","诈骗", "盗窃", "死亡", "强奸", "聚众斗殴", "寻衅滋事", "贩卖毒品", "运输毒品", "故意伤害",
-		"涉嫌诽谤", "抢劫", "绑架", "勒索", "杀人", "纠纷", "非法拘禁", "运输毒品", "破坏电力设备","一案", "违法", "非法", "犯罪" };
+		"涉嫌诽谤", "抢劫", "绑架", "勒索", "杀人", "纠纷", "非法拘禁", "运输毒品", "破坏电力设备","一案", "违法", "非法", "犯罪","未履行生效法律文书",
+		"未履行法律文书","申请强制执行" };
 	
 	public static String[] BOOKCLASS = {"准许强制执行裁定书","民事附带刑事判决书","强制医疗决定书","指定管辖决定书","非诉行政执行裁定书","行政审查裁定书","不予受理案件决定书","暂予监外执行决定书",
-		"民事调解书判决书","强制医疗决定书","准予撤诉决定书","刑事附带民事判决书","刑事附带民事调解书","案件执行结束通知书","减刑假释文书","口头撤诉裁定笔录","行政文书","商事文书","普通民事文书","普通刑事文书",
+		"民事调解书判决书","强制医疗决定书","准予撤诉决定书","刑事附带民事判决书","刑事附带民事调解书","案件执行结束通知书","减刑假释文书","口头撤诉裁定笔录","普通民事文书","普通刑事文书",
 		"民事调解书", "民事裁定书", "民事判决书", "民事决定书","刑事判决书", "刑事裁定书", "刑事决定书", "行政判决书", "行政决定书", "行政裁定书", "执行裁定书","普通执行文书","普通行政文书",
-			"执行判决书", "执行决定书", "国家赔偿裁定书", "国家赔偿判决书", "国家赔偿决定书", "驳回申诉通知书","调解书","决定书", "通知书","判决书","裁定书","民事","刑事","行政","执行"};// 文书类型
+		"行政文书","商事文书","执行判决书", "执行决定书", "国家赔偿裁定书", "国家赔偿判决书", "国家赔偿决定书", "驳回申诉通知书","调解书","决定书", "通知书","判决书","裁定书","民事","刑事","行政","执行"};// 文书类型
 	
+	public static String[] PROVINCE = {"北京市","天津市","上海市","重庆市","河北省","河南省","云南省","辽宁省","黑龙江省","湖南省","安徽省","山东省","新疆",
+			"江苏省","浙江省","江西省","湖北省","广西","甘肃省","山西省","内蒙古","陕西省","吉林省","福建省","贵州省","广东省","青海省","西藏","四川省","宁夏","海南省","台湾省 "};
 	public static String[] CAUSENUM = { "（２０", "(2０", "（2０", "〔2０", "[2０",
 			"【2０", "(20", "（20", "〔20", "［2", "[20", "【20", "(19", "（19",
 			"〔19", "[19", "【19" };
 	public static String[] CAUSENUM2 = { "判决书字号", "字号" };
 	public static String[] CAUSENUM3 = { "第", "字" };
 	static long count = 0;// 总数量
-	static long ERRORSUM = 0;// 出错数据
+	static long ALL = 0;// 出错数据
+	static long SUM = 0;
 	static Map<String, String> MAPS = new HashMap<String, String>();
 	static {
 		MAPS.put("html", "html");
 		MAPS.put("htm", "htm");
 		MAPS.put("txt", "txt");
-		MAPS.put("doc", "doc");
 	}
 	public static String[] charset = {"utf-8","gbk","gb2312","gb18030","big5"};
 	public static  String[] ERCOEDING={"й","෨","Ժ","ۼ","ҩ","ල","ɷ","ص","δ","ġ","Ϊ","ط","Ϣ","ȡ","Ӫ","ã","","Դ","ڲ","Ѱ","�"};
 	private static Logger logger = LogManager.getLogger( ExtractionHtml.class.getName());
-	static ApplicationContext application = new ClassPathXmlApplicationContext( "classpath:\\cn\\com\\szgao\\config\\applicationContext.xml");
-	static SessionFactory sessionFactory = (SessionFactory) application.getBean("sessionFactory");
-
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args) throws IOException {
 
-		File filepor = new File("E:\\Company_File\\log4j-1104\\Java1\\batchImport.log");
-		if (filepor.exists()) {
-			filepor.delete();// 删除日志文件
-		}
-		filepor = null;
+//		File filepor = new File("D:\\Company_File\\log4j-1216\\Java2\\batchImport.log");
+//		if (filepor.exists()) {
+//			filepor.delete();// 删除日志文件
+//		}
+//		filepor = null;
 		PropertyConfigurator.configure("F:\\work\\WorkSpace_Eclipse\\WorkSpace_Eclipse\\MassPick\\WebContent\\WEB-INF\\log4j.properties");
 		long da = System.currentTimeMillis();
-		File file = new File("F:/DataSheet/DetailedPage/裁判文书/DistrictCourtHtm/HTML2/湖南省");
-		Bucket bucket = CommonConstant.connectionCouchBase();
+		File file = new File("G:\\Data\\十二月\\HTML\\zgcpwsw-20151127\\zgcpwsw20151127(天津、西藏、新疆、新疆建设兵团、浙江)");
+		//查PG省市县/区
+		Bucket bucket = null;
+		bucket = connectionBucket(bucket);
+		AdministrationUtils util =new AdministrationUtils();
+		util.initData(); // 查询行政区
 		try {
-			show(file, bucket);
+			show(file, bucket,util);
 		} catch (Exception e) {
 			logger.error(e.getMessage());
 		} finally {
-			file = null;
+//			file = null;
+			util = null;
 			bucket.close();
+			cluster2 = null;
 		}
 		logger.info(count + ":数量");
 		logger.info("所有文件总耗时" + (((System.currentTimeMillis() - da) / 1000) / 60) + "分钟");
 	}
-	//
+	//连接CB
+	private static Bucket connectionBucket(Bucket bucket){
+		try {
+			bucket = connectionCouchBaseLocal();//本地CB
+		} catch (Exception e) {
+			while(true){	
+				try{
+					bucket = connectionCouchBaseLocal();//本地CB
+					break;
+				}
+				catch(Exception ee){
+					Log.error(ee);
+				}
+			}
+		}
+		
+		return bucket;
+	}
 	/**
 	 * 递归遍历html文件
 	 * 
@@ -112,15 +137,11 @@ public class ExtractionHtml {
 	 * @throws
 	 * @throws Exception
 	 */
-	private static void show(File file, Bucket bucket) throws Exception {
-		CollectionDataDao dataDao = new CollectionDataDao();
-		dataDao.setSf(sessionFactory);
-		CollectDataService service = new CollectDataService();
-		service.setiCollectionDataDao(dataDao);
+	private static void show(File file, Bucket bucket,AdministrationUtils util) throws Exception {
 		String variable = null;
 		String html = null;
-		Map<String, List<String>> list = null;
 		ArchivesVO arch = null;
+		Map<String, List<String>> list = null;
 		List<ArchivesVO> listarchs = null;
 		Document doc;
 		listarchs = new ArrayList<ArchivesVO>();
@@ -137,7 +158,6 @@ public class ExtractionHtml {
 			for(String val : charset){//匹配不同编码格式
 			doc = Jsoup.parse(file, val);
 			html = doc.body().text();//取页面body标签中所有内容
-			logger.info("-----------------------所有内容："+html);
 			boolean Garbled = getErrorCode(html);//判断编码是否错误
 			if (Garbled == false) {
 				logger.info(val + "编码错误！！！");
@@ -157,7 +177,7 @@ public class ExtractionHtml {
 			}
 			if(html == null || "".equals(html)){
 				logger.info("内容为空的HTML页面："+file.getPath());
-				}
+			}
 			html =  getReplaceAll(html).trim();
 			logger.info("所有内容：" + html);
 			list = ExtractthepeopleText.getPersonName(html);
@@ -166,12 +186,12 @@ public class ExtractionHtml {
 			logger.info("原告相关人:" + arch.getPlaintiff());
 			arch.setDefendant( getKeyName(list, 2)); // 被告相关人 √
 			logger.info("被告相关人:" + arch.getDefendant());
-			variable =  getAtherthe(html);
+			variable =  getCourtName(html);
 			if(variable != null && !"".equals(variable)){
 				arch.setCourtName(variable); // 法院 √
 			}
 			if(variable == null || "".equals(variable)){
-			arch.setCourtName( getCourtName(html)); // 法院 √
+			arch.setCourtName( getAtherthe(html)); // 法院 √
 			}
 			logger.info("法院:" + arch.getCourtName());
 			arch.setCaseCause( StringCause(html)); // 案由 √
@@ -193,7 +213,7 @@ public class ExtractionHtml {
 			logger.info("<<------------------------------------------------------>>");
 			arch.setUuid(file.getName().substring(0, file.getName().lastIndexOf(".")));
 			listarchs.add(arch);
-			boolean result =  updateJsonData(listarchs, bucket);
+			boolean result =  updateJsonData(listarchs, bucket,util);
 			if (!result) {
 				logger.info(file.getPath() + ":更新失败");
 			}
@@ -213,7 +233,7 @@ public class ExtractionHtml {
 				if (null == suffix) {
 					return;
 				}
-				logger.info("网址:" + fi.getPath());
+//				logger.info("网址:" + fi.getPath());
 				for(String val : charset){	//匹配不同编码格式
 					doc = Jsoup.parse(fi, val);
 					html = doc.body().text();
@@ -241,17 +261,17 @@ public class ExtractionHtml {
 				list = ExtractthepeopleText.getPersonName(html);
 				
 				arch.setPlaintiff( getKeyName(list, 1)); // 原告相关人√
-				logger.info("<<------------------------------------------------------>>");
-				arch.setDefendant( getKeyName(list, 2)); // 被告相关人√
 				
+				arch.setDefendant( getKeyName(list, 2)); // 被告相关人√
+			
 				arch.setCatalog( getCatalog(html)); // 文书类型 √
 				
-				variable =  getAtherthe(html);
+				variable =  getCourtName(html);
 				if(variable != null && !"".equals(variable)){
 					arch.setCourtName(variable); // 法院 √
 				}
 				if(variable == null || "".equals(variable)){
-				arch.setCourtName( getCourtName(html)); // 法院 √
+				arch.setCourtName( getAtherthe(html)); // 法院 √
 				}
 				
 				arch.setCaseCause( StringCause(html)); // 案由 √
@@ -268,10 +288,10 @@ public class ExtractionHtml {
 					arch.setCaseNum(getSentenceNo3(html)); // 案号 √
 				}
 				arch.setUuid(fi.getName().substring(0,fi.getName().lastIndexOf(".")));
-				showData(arch); // 打印所有截取字段
+//				showData(arch); // 打印所有截取字段
 				listarchs.add(arch);
-				if (listarchs.size() >= 2000) {
-					boolean result =  updateJsonData(listarchs,bucket);
+				if (listarchs.size() >= 1000) {
+					boolean result =  updateJsonData(listarchs,bucket,util);
 					if (!result) {
 						logger.info(fi.getPath() + ":更新失败1");
 					}
@@ -282,13 +302,13 @@ public class ExtractionHtml {
 				}
 			} else if (fi.isDirectory()) {
 				logger.info(fi.getName());
-				show(fi, bucket);
+				show(fi, bucket,util);
 			} else {
 				continue;
 			}
 		}
 		if (null != listarchs && listarchs.size() > 0) {
-			boolean result =  updateJsonData(listarchs, bucket);
+			boolean result =  updateJsonData(listarchs, bucket,util);
 			if (!result) {
 				logger.info(":更新失败2");
 			}
@@ -298,6 +318,10 @@ public class ExtractionHtml {
 			return;
 		}
 	}
+	
+	/**
+	 * @param arch
+	 */
 	
 	public static void showData(ArchivesVO arch) {
 		logger.info("UUID:" + arch.getUuid());
@@ -315,12 +339,12 @@ public class ExtractionHtml {
 	/**
 	 * 裁判文书 抓取word，HTML修改court桶
 	 */
-	public static boolean updateJsonData(List<ArchivesVO> list, Bucket bucket)
-			throws Exception {
-		//
+	public static boolean updateJsonData(List<ArchivesVO> list, Bucket bucket,AdministrationUtils util) throws Exception {
 		if (null == list || list.size() <= 0) {
 			return false;
 		}
+//		util.initData(); // 查询行政区
+		String[] array = null;
 		JsonDocument doc = null;
 		JsonObject obj2 = null;
 		com.google.gson.JsonObject json = null;
@@ -328,10 +352,10 @@ public class ExtractionHtml {
 		ArchivesVO archs = null;
 		try {
 			for (ArchivesVO arch : list) {
+				SUM ++;
 				// 查询数据
 				doc = JsonDocument.create(arch.getUuid()); // 获取ID
-				obj2 = bucket.get(doc) == null ? null : bucket.get(doc)
-						.content();
+				obj2 = bucket.get(doc) == null ? null : bucket.get(doc).content();
 				if (obj2 == null) {
 					logger.info("匹配不到UUID:" + arch.getUuid());
 					continue;
@@ -340,74 +364,68 @@ public class ExtractionHtml {
 				json = gson.fromJson(obj2.toString(),
 						com.google.gson.JsonObject.class);
 				archs = gson.fromJson(json, ArchivesVO.class);
-
-				if (null != obj2.get("title") && !"".equals(obj2.get("title"))) {
-					archs.setTitle(obj2.get("title").toString());// 标题
-				}
+				
 				if (null != arch.getTitle() && !"".equals(arch.getTitle())) {
 					archs.setTitle(arch.getTitle());
 				}
-
-				if (null != obj2.get("caseNum")
-						&& !"".equals(obj2.get("caseNum"))) {
-					archs.setCaseNum(obj2.get("caseNum").toString());// 案号
+				if (null != obj2.get("title") && !"".equals(obj2.get("title"))) {
+					archs.setTitle(obj2.get("title").toString());// 标题
 				}
 				if (null != arch.getCaseNum() && !"".equals(arch.getCaseNum())) {
 					archs.setCaseNum(arch.getCaseNum());
 				}
-
-				if (null != obj2.get("courtName") && !"".equals(obj2.get("courtName"))) {
-					archs.setCourtName(obj2.get("courtName").toString());// 法院名
+				if (null != obj2.get("caseNum") && !"".equals(obj2.get("caseNum"))) {
+					archs.setCaseNum(obj2.get("caseNum").toString());// 案号
 				}
 				if (null != arch.getCourtName() && !"".equals(arch.getCourtName())) {
 					archs.setCourtName(arch.getCourtName());
 				}
-				if (null != obj2.get("catalog") && !"".equals(obj2.get("catalog"))) {
-					archs.setCatalog(obj2.get("catalog").toString());// 分类
+				if (null != obj2.get("courtName") && !"".equals(obj2.get("courtName"))) {
+					archs.setCourtName(obj2.get("courtName").toString());// 法院名
 				}
 				if (null != arch.getCatalog() && !"".equals(arch.getCatalog())) {
 					archs.setCatalog(arch.getCatalog());
 				}
-				if (null != obj2.get("plaintiff") && !"".equals(obj2.get("plaintiff"))) {
-					archs.setPlaintiff(obj2.get("plaintiff").toString());// 原告
-				}
-				if (null != arch.getPlaintiff() && !"".equals(arch.getPlaintiff())) {
-					archs.setPlaintiff(arch.getPlaintiff());
-				}
-
-				if (null != obj2.get("defendant") && !"".equals(obj2.get("defendant"))) {
-					archs.setDefendant(obj2.get("defendant").toString());// 被告
-				}
-				if (null != arch.getDefendant() && !"".equals(arch.getDefendant())) {
-					archs.setDefendant(arch.getDefendant());
-				}
-
-				if (null != obj2.get("approval") && !"".equals(obj2.get("approval"))) {
-					archs.setApproval(obj2.get("approval").toString());// 审批结果
+				if (null != obj2.get("catalog") && !"".equals(obj2.get("catalog"))) {
+					archs.setCatalog(obj2.get("catalog").toString());// 分类
 				}
 				if (null != arch.getApproval() && !"".equals(arch.getApproval())) {
 					archs.setApproval(arch.getApproval());
 				}
-
-				if (null != obj2.get("approvalDate") && !"".equals(obj2.get("approvalDate"))) {
-					archs.setApprovalDate(obj2.get("approvalDate").toString());// 审结日期
-				}
-				if (null != arch.getApprovalDate() && !"".equals(arch.getApprovalDate())) {
-					archs.setApprovalDate(arch.getApprovalDate());
-				}
-				
-				if (null != obj2.get("caseCause") && !"".equals(obj2.get("caseCause"))) {
-					archs.setCaseCause(obj2.get("caseCause").toString());// 案由
+				if (null != obj2.get("approval") && !"".equals(obj2.get("approval"))) {
+					archs.setApproval(obj2.get("approval").toString());// 审批结果
 				}
 				if (null != arch.getCaseCause() && !"".equals(arch.getCaseCause())) {
 					archs.setCaseCause(arch.getCaseCause());
+				}
+				if (null != obj2.get("caseCause") && !"".equals(obj2.get("caseCause"))) {
+					archs.setCaseCause(obj2.get("caseCause").toString());// 案由
+				}
+				if (null != arch.getPlaintiff() && !"".equals(arch.getPlaintiff())) {
+					archs.setPlaintiff(arch.getPlaintiff());
+				}
+				if (null != obj2.get("plaintiff") && !"".equals(obj2.get("plaintiff"))) {
+					archs.setPlaintiff(obj2.get("plaintiff").toString());// 原告
+				}
+
+				if (null != arch.getDefendant() && !"".equals(arch.getDefendant())) {
+					archs.setDefendant(arch.getDefendant());
+				}
+				if (null != obj2.get("defendant") && !"".equals(obj2.get("defendant"))) {
+					archs.setDefendant(obj2.get("defendant").toString());// 被告
+				}
+
+				if (null != arch.getApprovalDate() && !"".equals(arch.getApprovalDate())) {
+					archs.setApprovalDate(arch.getApprovalDate());
+				}
+				if (null != obj2.get("approvalDate") && !"".equals(obj2.get("approvalDate"))) {
+					archs.setApprovalDate(obj2.get("approvalDate").toString());// 审结日期
 				}
 
 				if (null != arch.getSummary() && !"".equals(arch.getSummary())) {
 					archs.setSummary(arch.getSummary());
 				}
-				if (null != obj2.get("summary")
-						&& !"".equals(obj2.get("summary"))) {
+				if (null != obj2.get("summary") && !"".equals(obj2.get("summary"))) {
 					archs.setSummary(obj2.get("summary").toString());// 摘要
 				}
 
@@ -418,6 +436,7 @@ public class ExtractionHtml {
 				if (null != obj2.get("publishDate") && !"".equals(obj2.get("publishDate"))) {
 					archs.setPublishDate(getReplaceAllDate(obj2.get("publishDate").toString()));// 发布日期
 				}
+				
 				if (null != obj2.get("province") && !"".equals(obj2.get("province"))) {
 					archs.setProvince(obj2.get("province").toString());// 省
 				}
@@ -427,9 +446,26 @@ public class ExtractionHtml {
 				if (null != obj2.get("area") && !"".equals(obj2.get("area"))) {
 					archs.setArea(obj2.get("area").toString());// 县
 				}
+				if(null != archs.getCourtName() && !"".equals(archs.getCourtName())){
+					array = util.utils(arch.getCourtName());
+				}
+				if(null != obj2.get("courtName") && !"".equals(obj2.get("courtName"))){
+					array = util.utils(obj2.get("courtName").toString());
+				}
+								if (null != array) {
+									if(null != array[0] && !"".equals(array[0])){
+									archs.setProvince(array[0]);
+									}
+									if(null != array[1] && !"".equals(array[1])){
+									archs.setCity(array[1]);
+									}
+									if(null != array[2] && !"".equals(array[2])){
+									archs.setArea(array[2]);
+									}
+								}
+									
 				if (null != obj2.get("collectDate") && !"".equals(obj2.get("collectDate"))) {
-					archs.setCollectDate(getReplaceAllDate(obj2.get(
-							"collectDate").toString()));// 采集时间
+					archs.setCollectDate(getReplaceAllDate(obj2.get("collectDate").toString()));// 采集时间
 				}
 				if (null != obj2.get("suitDate") && !"".equals(obj2.get("suitDate"))) {
 					archs.setSuitDate(obj2.get("suitDate").toString());// 起诉日期
@@ -437,12 +473,14 @@ public class ExtractionHtml {
 				String jsonss = gson.toJson(archs);
 				doc = JsonDocument.create(arch.getUuid(),
 						JsonObject.fromJson(jsonss));
+				logger.info("更新条数："+SUM+"---省："+array[0]+"---市："+array[1]+"---县/区："+array[2]);
 				bucket.upsert(doc);
 			}
 		} catch (Exception e) {
 			logger.error(e.getMessage());
 			return false;
 		} finally {
+			array = null;
 			gson = null;
 			json = null;
 			archs = null;
@@ -451,7 +489,6 @@ public class ExtractionHtml {
 		}
 		return true;
 	}
-
 	//判断是否存在乱码
     public static boolean getErrorCode(String value){
     	if(value == null || "".equals(value)){return false;}
@@ -747,7 +784,7 @@ public class ExtractionHtml {
 		}
 		return null;
 	}
-
+	
 	// 去掉无用字符
 	public static String getReplaceAll(String value) {
 		if(value == null || "".equals(value)){return null;}
@@ -756,7 +793,7 @@ public class ExtractionHtml {
 			value = value.replaceAll(",", "，");
 			value = value.replaceAll("�,o,O", "〇");
 			value = value.replaceAll("[×,X,Ｘ,x,╳,＊,\\*]", "某");
-			value = value.replaceAll("[\n,\t,\r,\\s,&nbsp; ,：,“,” ,:,<,/>,</,>,-,+,=,},{,#,\",',-,%,^,*]","");	//a-z,A-Z,没有去掉字母
+			value = value.replaceAll("[\n,\t,\r,\\s,&nbsp; ,：,“,”,|,:,<,/>,</,>,-,+,=,},{,#,\",',-,%,^,*]","");	//a-z,A-Z,没有去掉字母
 //			value = value.replaceAll("[\n,\t,\r,\\s,&nbsp; ,：,“,”,・ ,:,<,/>,</,>,a-z,A-Z,-,+,=,},{,.,#,\",',-,%,^,*]","");	//去掉所有字母
 			value = getSpecialStringALL(value);
 			value = value.trim();
@@ -849,8 +886,18 @@ public class ExtractionHtml {
 		if (value != null && !"".equals(value)) {
 			for(String val : DATESTATUS){
 				value = value.replaceAll(val,"");
+				continue;
 			}
 		value = value.replaceAll("[（,）,(,),【,】,{,},<,>,★,?,0-9,a-z,A-Z,!,！,#,$,%,&,*,/,\",／,|,、]", "");
+		value = value.replaceAll("[欢迎,登陆,登录,编辑,录入,年月日,首页,发表日期,发布日期,裁判文书,次数次,打印此页,关闭,下载,查看次数,字号,双击,屏幕滚动]", "");
+		int index = 0;
+		for(String val2 : PROVINCE){
+			index = value.lastIndexOf(val2);
+			if(index > 0){
+				value = value.substring(index, value.length());
+			}
+			continue;
+		}
 		return value;
 		}
 		return value;
@@ -866,23 +913,24 @@ public class ExtractionHtml {
 		int index ;
 		try {
 			for(String val : valuesplit){
-				index = val.indexOf("书");
+				index = val.lastIndexOf("书");
 				if(index == -1){
-					index = val.indexOf("号");
+					index = val.lastIndexOf("号");
 					if(index == -1){
-						index = val.indexOf("第");
+						index = val.lastIndexOf("第");
 					}
 				}
-				courtName = value.substring(0,index+1);
+				courtName = val.substring(0,index+1);
 				courtName = courtName.replaceAll("[0-9,\\-,:,_,：]", "");
-				index = courtName.indexOf("法院");
+				if(null == courtName && "".equals(courtName)){continue;}
+				index = courtName.lastIndexOf("法院");
+				if(index == -1){continue;}
 				courtName = courtName.substring(0, index+2);
 				courtName = replaceCourtName(courtName);
-				if(courtName != null && !"".equals(courtName)){
+				if(courtName == null && "".equals(courtName)){continue;}
 					if(courtName.length()>=4){
 						return courtName;
 					}
-				}
 			}
 		} catch (Exception e) {
 			logger.error("提取法院名称出错:" + e.getMessage());
@@ -896,16 +944,11 @@ public class ExtractionHtml {
 		String[] gatherthes = null;
 		StringBuffer sb = null;
 		String[] valuesplit = value.split("。");
-		// int index=0;
 		try {
 			for (String val : valuesplit) {
-				// index=getDateIndex2(val);
-				// if(index>=0){
 				value = val;
 				break;
-				// }
 			}
-			// if(index==-1){return null;}
 			gatherthe = value.substring(0, value.length());
 			int index = value.indexOf("书");
 			if(index == -1){
@@ -995,6 +1038,10 @@ public class ExtractionHtml {
 			for (String val : CAUSE) {
 				index = value.indexOf(val);
 				if (index >= 0) {
+					indx = value.lastIndexOf("公告");
+					if(indx > 0 ){
+						if(index < indx){return null;}
+					}
 					if (val.equals("驳回申诉通知") || val.equals("赔偿决定书")) {
 						int index2 = getDateIndex(value);
 						if (index == -1) {
@@ -1021,8 +1068,7 @@ public class ExtractionHtml {
 						if (val.equals("驳回申诉通知"))
 							val = "国家赔偿";
 					}
-					lastxt = value
-							.substring(value.indexOf(val), value.length());
+					lastxt = value.substring(value.indexOf(val), value.length());
 					lastxt = lastxt.substring(lastxt.indexOf(val),
 							lastxt.indexOf("。") + 1);
 					return new StringBuffer(firTxt).append(lastxt).toString();
@@ -1066,5 +1112,44 @@ public class ExtractionHtml {
 				return html;
 			}
 			return null;
+		}
+		
+		/**
+	     * 半角转全角
+	     * @param input String.
+	     * @return 全角字符串.
+	     */
+	    public static String ToSBC(String input) {
+	             char c[] = input.toCharArray();
+	             for (int i = 0; i < c.length; i++) {
+	               if (c[i] == ' ') {
+	                 c[i] = '\u3000';
+	               } else if (c[i] < '\177') {
+	                 c[i] = (char) (c[i] + 65248);
+	               }
+	             }
+	             return new String(c);
+	    }
+	    /**
+	     * 全角转半角
+	     * @param input String.
+	     * @return 半角字符串
+	     */
+	    public static String ToDBC(String input) {
+	             char c[] = input.toCharArray();
+	             for (int i = 0; i < c.length; i++) {
+	               if (c[i] == '\u3000') {
+	                 c[i] = ' ';
+	               } else if (c[i] > '\uFF00' && c[i] < '\uFF5F') {
+	                 c[i] = (char) (c[i] - 65248);
+	               }
+	             }
+	        String returnString = new String(c);
+	             return returnString;
+	    }
+	    
+	    public static Bucket connectionCouchBaseLocal(){
+			//连接指定的桶		
+			return cluster2.openBucket("court",1,TimeUnit.MINUTES);	
 		}
 }

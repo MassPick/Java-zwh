@@ -58,7 +58,7 @@ public class BaseDao implements IBaseDao {
 	 */
 	public Bucket connectionCouchBase(){
 		//连接服务器
-		cluster = CouchbaseCluster.create("192.168.0.252");
+		cluster = CouchbaseCluster.create("192.168.1.3");
 		//连接指定的桶
 		bucket = cluster.openBucket("court");		
 		return bucket;

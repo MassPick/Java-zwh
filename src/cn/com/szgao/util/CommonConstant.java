@@ -11,9 +11,11 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -28,12 +30,16 @@ import org.hibernate.SessionFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
+import rx.Observable;
+import rx.functions.Func1;
+
 import cn.com.szgao.action.Test;
 import cn.com.szgao.dto.ArchivesVO;
 
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.CouchbaseCluster;
+import com.couchbase.client.java.document.JsonDocument;
 import com.fasterxml.uuid.Generators;
 import com.fasterxml.uuid.impl.NameBasedGenerator;
 
@@ -75,7 +81,8 @@ public class CommonConstant {
 	 */
 	public static final String COMMA = ",";
 	//群对象
-	private static Cluster cluster = CouchbaseCluster.create("192.168.0.253");
+	private static Cluster cluster = CouchbaseCluster.create("192.168.1.13");
+	private static Cluster cluster2 = CouchbaseCluster.create("192.168.1.13");
 	/**
 	 * 每次写数据的批次数
 	 */
@@ -207,13 +214,16 @@ public class CommonConstant {
 	 */
 	public static Bucket connectionCouchBase(){
 		//连接指定的桶		
-		return cluster.openBucket("court");
+		return cluster.openBucket("court",1,TimeUnit.MINUTES);	
 	} 
+	public static Bucket connectionCouchBaseLocal(){
+		//连接指定的桶		
+		return cluster2.openBucket("court",1,TimeUnit.MINUTES);	
+	}
 	
 	public static Bucket connectionCouchBasexcy(){
 		//连接指定的桶		
-		return cluster.openBucket("xcy_test2");
-//		return cluster.openBucket("court");
+		return cluster.openBucket("xcy_test2",1,TimeUnit.MINUTES);
 	} 
 	/**
 	 * 公告
@@ -221,7 +231,7 @@ public class CommonConstant {
 	 */
 	public static Bucket connectionCouchBaseNotice(){
 		//连接指定的桶		
-		return cluster.openBucket("court");
+		return cluster.openBucket("court",1,TimeUnit.MINUTES);
 	} 
 	/**
 	 * 生成UUID

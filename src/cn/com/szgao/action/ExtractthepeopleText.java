@@ -339,6 +339,7 @@ public class ExtractthepeopleText {
 				    value=value.replaceAll("[×,X,Ｘ,x,╳,＊,\\*]","某");
 				    value=value.replaceAll("[\n,\t,\r,\\s,&nbsp; ,：,“,”,・ ,:,<,/>,</,>,a-z,A-Z,-,+,=,},{,.,#,\",',-,%,^,*]","");
 					value=getSpecialStringALL(value);
+					if(value == null || "".equals(value)){return null;}
 				    value=value.trim();
 					sb=new StringBuffer();
 					sb.append(value);

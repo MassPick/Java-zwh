@@ -29,7 +29,9 @@ public class DateTime {
 	private static Logger logger = LogManager.getLogger(DateTime.class.getName());
 	static ApplicationContext application = new ClassPathXmlApplicationContext("classpath:\\cn\\com\\szgao\\config\\applicationContext.xml");
 	static SessionFactory sessionFactory = (SessionFactory) application.getBean("sessionFactory");
-	public static String  CASENUM[] = {"(20","（20","〔20","[20","【20","(19","（19","〔19","[19","【19"};
+	public static String[] CASENUM = { "（２０", "(2０", "（2０", "〔2０", "[2０",
+		"【2０", "(20", "（20", "〔20", "［2", "[20", "【20", "(19", "（19",
+		"〔19", "[19", "【19" };
 	static long count = 0;
 	/**
 	 * 数据清洗

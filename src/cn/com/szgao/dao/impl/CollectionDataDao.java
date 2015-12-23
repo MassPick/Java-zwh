@@ -882,13 +882,24 @@ public class CollectionDataDao extends BaseDao implements ICollectionDataDao {
 		 return true;
 	}
 	
+	public static Connection getConnection() throws ClassNotFoundException,SQLException {
+		String url = "jdbc:postgresql://192.168.1.2:5432/duplicatedb";
+		String usr = "postgres";
+		String psd = "615601.xcy*";
+		Connection conn = null;
+		Class.forName("org.postgresql.Driver");
+		conn = DriverManager.getConnection(url, usr, psd);
+		return conn;
+	}
+	
 	/**
 	 * 用jdbc把Json数据写入PG
 	 * 裁判文书
+	 * @throws ClassNotFoundException 
 	 */
-	public boolean jdbcCreateJSONPostgresql(List<ArchivesVO> list) throws SQLException{
-			ConnectionProvider cp = ((SessionFactoryImplementor)this.getSf()).getConnectionProvider();
-			Connection conn=cp.getConnection();	
+	public boolean jdbcCreateJSONPostgresql(List<ArchivesVO> list) throws SQLException, ClassNotFoundException{
+//			ConnectionProvider cp = ((SessionFactoryImplementor)this.getSf()).getConnectionProvider();
+			Connection conn=CollectionDataDao.getConnection();	
 			PreparedStatement stmt=null;//供查询使用
 			PreparedStatement stmt2=null;//供插入操作使用
 			ResultSet rset=null;
@@ -907,7 +918,7 @@ public class CollectionDataDao extends BaseDao implements ICollectionDataDao {
 			}
 			rset =stmt.executeQuery();
 			Map<String,String> map=JsongetMap(rset);
-			stmt2=conn.prepareStatement("INSERT INTO  filed_zwh_test(URL_ID,URL,URL_TEXT,URL_STATE,CREATE_DATE,LAST_MODIFY_DATE) values(?,?,?,?,?,?)");
+			stmt2=conn.prepareStatement("INSERT INTO  filed_zwh_test1(URL_ID,URL,URL_TEXT,URL_STATE,CREATE_DATE,LAST_MODIFY_DATE) values(?,?,?,?,?,?)");
 			String urlvalue=null;
 			
 			try {
@@ -966,7 +977,7 @@ public class CollectionDataDao extends BaseDao implements ICollectionDataDao {
 	 * @return
 	 */
 	private String JsonSql(int count){
-		StringBuffer sb=new StringBuffer("SELECT URL_ID FROM filed_zwh_test WHERE URL_ID IN (");
+		StringBuffer sb=new StringBuffer("SELECT URL_ID FROM filed_zwh_test1 WHERE URL_ID IN (");
 		int index=0;		
 		for(index=0;index<count;index++){
 			if(index==0){				

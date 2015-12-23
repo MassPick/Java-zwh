@@ -18,12 +18,33 @@ public class ArchivesVO {
 	 * 法院名称
 	 */
 	private String courtName;
+	/**
+	 * 区/县
+	 */
 	private String area;
+	/**
+	 * 文书类型
+	 */
 	private String catalog;
+	/**
+	 * 省份
+	 */
 	private String province;
+	/**
+	 * 公开日期
+	 */
 	private String publishDate;
+	/**
+	 * 采集时间
+	 */
 	private String collectDate;
+	/**
+	 * 案号
+	 */
 	private String caseNum;
+	/**
+	 * 城市
+	 */
 	private String city;
 	/**
 	 * 原告

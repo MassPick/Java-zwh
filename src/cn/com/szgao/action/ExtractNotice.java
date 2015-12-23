@@ -21,6 +21,11 @@ import cn.com.szgao.service.api.ICollectDataService;
 import cn.com.szgao.service.impl.CollectDataService;
 
 
+/**
+ * 公告HTML抓取写入couchbase
+ * @author Administrator
+ *
+ */
 public class ExtractNotice {
 	private static Logger logger = LogManager.getLogger(ExtractNotice.class.getName());
 	static ApplicationContext application = new ClassPathXmlApplicationContext(

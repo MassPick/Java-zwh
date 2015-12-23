@@ -24,6 +24,12 @@ import cn.com.szgao.dto.ArchivesVO;
 import cn.com.szgao.service.impl.CollectDataService;
 import cn.com.szgao.util.CommonConstant;
 
+/**
+ * 裁判文书抓取HTML写couchbase库
+ * 已废弃
+ * @author Administrator
+ *
+ */
 public class ExtractText {
 	private static Logger logger = LogManager.getLogger(ExtractText.class
 			.getName());
